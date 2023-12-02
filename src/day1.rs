@@ -29,8 +29,8 @@ pub fn part1() -> io::Result<()> {
         }
     }
 
-    println!("Part 1:");
-    println!("total_sum: {}\n", total_sum);
+    println!("  Part 1:");
+    println!("  total_sum: {}\n", total_sum);
     Ok(())
 }
 
@@ -53,8 +53,8 @@ pub fn part2() -> io::Result<()> {
         }
     }
 
-    println!("Part 2:");
-    println!("total_sum: {}\n", total_sum);
+    println!("  Part 2:");
+    println!("  total_sum: {}\n", total_sum);
     Ok(())
 }
 
