@@ -1,12 +1,11 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-use tracing::warn;
 
 pub fn run() -> io::Result<()> {
     println!("Day 2: Cube Conundrum\n");
     part1()?;
-    // 2293 < ANSWER < 2744
 
     // part2()?;
 
@@ -24,27 +23,16 @@ pub fn part1() -> io::Result<()> {
     let max_blue = 14;
     let mut total_sum = 0;
 
-    for line in reader.lines() {
-        let line = line?;
-        // println!("  Line: {}", line);
-        if is_game_possible(&line, max_red, max_green, max_blue) {
-            // println!("  True\n");
-            if let Some(game_id) = line.split(':').next() {
-                if let Some(id) = game_id.split_whitespace().last() {
-                    if let Ok(val) = id.parse::<i32>() {
-                        // println!("  Game {} is possible", val);
-                        total_sum += val;
-                    } else {
-                        warn!("  Error: Could not parse game id");
-                    }
-                } else {
-                    warn!("  Error: Could not split game id");
-                }
-            } else {
-                warn!("  Error: Could not split line");
-            }
-        } else {
-            // println!("  False\n");
+    let games_str: Vec<String> = reader
+        .lines()
+        .map(|l| l.expect("Could not parse line"))
+        .collect();
+
+    let game_map = build_game_map(games_str);
+
+    for (game_id, subsets) in game_map {
+        if is_game_possible(subsets, max_red, max_green, max_blue) {
+            total_sum += game_id.parse::<i32>().unwrap();
         }
     }
 
@@ -54,31 +42,60 @@ pub fn part1() -> io::Result<()> {
     Ok(())
 }
 
-fn is_game_possible(game: &str, max_red: i32, max_green: i32, max_blue: i32) -> bool {
+fn build_game_map(games: Vec<String>) -> HashMap<String, Vec<(i32, i32, i32)>> {
+    let mut game_map = HashMap::new();
+
+    for game in games {
+        // Extract the game id
+        let game_id = game.split(':').next().unwrap().to_string();
+        let game_id = game_id.split_whitespace().last().unwrap().to_string();
+        let game_id = game_id.parse::<i32>().unwrap();
+
+        // Gather the subsets for this game
+        let mut subsets = Vec::new();
+        for subset in game.split(':').last().unwrap().split(';') {
+            subsets.push(parse_subset(subset.trim()));
+        }
+
+        // Insert the subsets into the game map
+        game_map.insert(game_id.to_string(), subsets);
+    }
+
+    game_map
+}
+
+fn is_game_possible(
+    game: Vec<(i32, i32, i32)>,
+    max_red: i32,
+    max_green: i32,
+    max_blue: i32,
+) -> bool {
+    // Init the max game values
     let mut red = 0;
     let mut green = 0;
     let mut blue = 0;
 
-    for subset in game.split(';') {
-        // Find the number of red, green, and blue cubes in this subset
-        let (r, g, b) = parse_subset(subset);
-        red = red.max(r);
-        green = green.max(g);
-        blue = blue.max(b);
+    // Find the max values for across game subsets
+    for subset in game {
+        red = red.max(subset.0);
+        green = green.max(subset.1);
+        blue = blue.max(subset.2);
     }
 
-    // true
     red <= max_red && green <= max_green && blue <= max_blue
 }
 
 fn parse_subset(subset: &str) -> (i32, i32, i32) {
+    // Init the subset values
     let mut red = 0;
     let mut green = 0;
     let mut blue = 0;
 
+    // Parse the subset
     for color in subset.split(',') {
         let parts: Vec<_> = color.split_whitespace().collect();
 
+        // If the subset is valid, parse the value and color
         if parts.len() == 2 {
             let value = parts[0].parse::<i32>().unwrap();
             let color = parts[1];
@@ -92,8 +109,6 @@ fn parse_subset(subset: &str) -> (i32, i32, i32) {
         }
     }
 
-    // println!("   red: {}, green: {}, blue: {}", red, green, blue);
-
     (red, green, blue)
 }
 
@@ -105,19 +120,31 @@ mod tests {
     #[test]
     fn test_is_game_possible_positive_1() {
         let game = "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green";
-        assert!(is_game_possible(game, 12, 13, 14));
+
+        let game = build_game_map(vec![game.to_string()]);
+        let game = game.get("1").unwrap();
+
+        assert!(is_game_possible(game.to_owned(), 12, 13, 14));
     }
 
     #[test]
     fn test_is_game_possible_negative_23() {
         let game = "Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red";
-        assert!(!is_game_possible(game, 12, 13, 14));
+
+        let game = build_game_map(vec![game.to_string()]);
+        let game = game.get("3").unwrap();
+
+        assert!(!is_game_possible(game.to_owned(), 12, 13, 14));
     }
 
     #[test]
     fn test_is_game_possible_negative_4() {
         let game = "Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red";
-        assert!(!is_game_possible(game, 12, 13, 14));
+
+        let game = build_game_map(vec![game.to_string()]);
+        let game = game.get("4").unwrap();
+
+        assert!(!is_game_possible(game.to_owned(), 12, 13, 14));
     }
 
     #[test]
@@ -133,32 +160,21 @@ mod tests {
         let max_blue = 14;
         let mut total_sum = 0;
 
-        let games: Vec<&str> = vec![
-            "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green",
-            "Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue",
-            "Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red",
-            "Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red",
-            "Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green",
+        let games: Vec<String> = vec![
+            "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green".to_owned(),
+            "Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue".to_owned(),
+            "Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red".to_owned(),
+            "Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red".to_owned(),
+            "Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green".to_owned(),
         ];
 
-        for line in games {
-            if is_game_possible(line, max_red, max_green, max_blue) {
-                if let Some(game_id) = line.split(':').next() {
-                    if let Some(id) = game_id.split_whitespace().last() {
-                        if let Ok(val) = id.parse::<i32>() {
-                            total_sum += val;
-                        } else {
-                            warn!("  Error: Could not parse game id");
-                        }
-                    } else {
-                        warn!("  Error: Could not split game id");
-                    }
-                } else {
-                    warn!("  Error: Could not split line");
-                }
+        let games = build_game_map(games.to_vec());
+
+        for (game_id, subsets) in games {
+            if is_game_possible(subsets, max_red, max_green, max_blue) {
+                total_sum += game_id.parse::<i32>().unwrap();
             }
         }
-
         assert_eq!(total_sum, 8);
     }
 }
