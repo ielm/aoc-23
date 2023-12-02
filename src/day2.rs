@@ -6,22 +6,17 @@ use std::path::Path;
 pub fn run() -> io::Result<()> {
     println!("Day 2: Cube Conundrum\n");
     part1()?;
-
-    // part2()?;
+    part2()?;
 
     Ok(())
 }
 
-// Part 1
-pub fn part1() -> io::Result<()> {
+type GameMap = HashMap<String, Vec<(i32, i32, i32)>>;
+
+pub fn init() -> io::Result<GameMap> {
     let path = Path::new("src/resources/day2.txt");
     let file = File::open(path).unwrap();
     let reader = io::BufReader::new(file);
-
-    let max_red = 12;
-    let max_green = 13;
-    let max_blue = 14;
-    let mut total_sum = 0;
 
     let games_str: Vec<String> = reader
         .lines()
@@ -29,6 +24,16 @@ pub fn part1() -> io::Result<()> {
         .collect();
 
     let game_map = build_game_map(games_str);
+    Ok(game_map)
+}
+
+pub fn part1() -> io::Result<()> {
+    let max_red = 12;
+    let max_green = 13;
+    let max_blue = 14;
+    let mut total_sum = 0;
+
+    let game_map = init()?;
 
     for (game_id, subsets) in game_map {
         if is_game_possible(subsets, max_red, max_green, max_blue) {
@@ -42,7 +47,31 @@ pub fn part1() -> io::Result<()> {
     Ok(())
 }
 
-fn build_game_map(games: Vec<String>) -> HashMap<String, Vec<(i32, i32, i32)>> {
+pub fn part2() -> io::Result<()> {
+    let game_map: GameMap = init()?;
+    let mut sum = 0;
+
+    for (_, game) in game_map {
+        // Find the min num of cubes for each color needed to build the game
+        let mut min_red = i32::MIN;
+        let mut min_green = i32::MIN;
+        let mut min_blue = i32::MIN;
+        for subset in game {
+            min_red = min_red.max(subset.0);
+            min_green = min_green.max(subset.1);
+            min_blue = min_blue.max(subset.2);
+        }
+
+        sum += min_red * min_green * min_blue;
+    }
+
+    println!("  Part 2:");
+    println!("  sum of min cubes: {}\n", sum);
+
+    Ok(())
+}
+
+fn build_game_map(games: Vec<String>) -> GameMap {
     let mut game_map = HashMap::new();
 
     for game in games {
@@ -178,5 +207,3 @@ mod tests {
         assert_eq!(total_sum, 8);
     }
 }
-
-//
